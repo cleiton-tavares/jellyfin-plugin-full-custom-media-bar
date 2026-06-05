@@ -35,7 +35,27 @@ ou **Programação Custom**. O front-end customizado é servido pelo próprio pl
 - Jellyfin `10.11.x` (o `.csproj` também suporta `10.10.7` via `-p:JellyfinVersion=10.10.7`)
 - Plugin **File Transformation** (https://github.com/IAmParadox27/jellyfin-plugin-file-transformation) — `v2.2.1.0` ou superior
 
-## Build
+## Instalação pelo catálogo do Jellyfin (direto do GitHub)
+
+A forma recomendada — instala e atualiza pelo painel do Jellyfin:
+
+1. No **Actions** do GitHub, rode o workflow **"Release Plugin"** (botão *Run workflow*)
+   ou faça push de uma tag `vX.Y.Z`. Ele cria um **Release** com o `.zip` e atualiza o
+   `manifest.json` na branch `main`.
+2. No Jellyfin: **Dashboard → Plugins → Repositories → +** e adicione a URL do manifesto:
+
+   ```
+   https://raw.githubusercontent.com/cleiton-tavares/jellyfin-plugin-full-custom-media-bar/main/manifest.json
+   ```
+
+3. **Dashboard → Plugins → Catalog**, encontre **Full Custom Media Bar** e clique em **Install**.
+4. Reinicie o Jellyfin e faça *force refresh* da página inicial.
+
+> Os releases são compilados para Jellyfin **10.11.x**. Se o seu servidor for outra
+> sub-versão e o plugin não carregar, rode o workflow informando a versão exata em
+> `jellyfinVersion` (ex.: `10.11.10`).
+
+## Build manual
 
 Não há repositório de plugins publicado para este fork; compile o DLL:
 

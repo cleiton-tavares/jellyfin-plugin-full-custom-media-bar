@@ -1,0 +1,116 @@
+name: Release Plugin
+
+# Publishes a GitHub Release with the built plugin .zip and updates the
+# Jellyfin plugin repository manifest (manifest.json) on the `main` branch so
+# the plugin can be installed/updated straight from the Jellyfin catalogue.
+
+on:
+  workflow_dispatch:
+    inputs:
+      jellyfinVersion:
+        description: "Jellyfin version to build against"
+        required: false
+        default: "10.11.2"
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  PROJECT: src/Jellyfin.Plugin.MediaBar/Jellyfin.Plugin.MediaBar.csproj
+  # Lowest Jellyfin version offered the plugin in the catalogue (4-part ABI).
+  TARGET_ABI: "10.11.0.0"
+  PLUGIN_GUID: "cda73f97-adfe-4af6-b875-d7a4addf4559"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Resolve versions
+        id: vars
+        run: |
+          JV="${{ github.event.inputs.jellyfinVersion }}"
+          [ -z "$JV" ] && JV="10.11.2"
+          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' "$PROJECT")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "jv=$JV" >> "$GITHUB_OUTPUT"
+          echo "Building version $VERSION against Jellyfin $JV"
+
+      - name: Build
+        run: dotnet build "$PROJECT" -c Release -p:JellyfinVersion=${{ steps.vars.outputs.jv }} -o ./publish
+
+      - name: Package
+        id: pkg
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          ASSET="full-custom-media-bar-${VERSION}.zip"
+          (cd publish && zip -j "../${ASSET}" Jellyfin.Plugin.MediaBar.dll)
+          CHK=$(md5sum "${ASSET}" | awk '{print $1}')
+          echo "asset=${ASSET}" >> "$GITHUB_OUTPUT"
+          echo "checksum=${CHK}" >> "$GITHUB_OUTPUT"
+          echo "Checksum: ${CHK}"
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.vars.outputs.version }}
+          name: v${{ steps.vars.outputs.version }}
+          files: ${{ steps.pkg.outputs.asset }}
+          fail_on_unmatched_files: true
+
+      - name: Update manifest.json
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          ASSET="${{ steps.pkg.outputs.asset }}"
+          CHK="${{ steps.pkg.outputs.checksum }}"
+          SRC="${{ github.server_url }}/${{ github.repository }}/releases/download/v${VERSION}/${ASSET}"
+          TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          NEWVER=$(jq -n \
+            --arg v "$VERSION" --arg abi "$TARGET_ABI" --arg src "$SRC" --arg chk "$CHK" --arg ts "$TS" \
+            '{version:$v, changelog:"", targetAbi:$abi, sourceUrl:$src, checksum:$chk, timestamp:$ts}')
+
+          BASE=$(jq -n \
+            --arg guid "$PLUGIN_GUID" \
+            --arg name "Full Custom Media Bar" \
+            --arg desc "Barra de mídia totalmente customizável (ex.: programação da Copa): título, imagem, vídeo ou transmissão ao vivo." \
+            --arg owner "cleiton-tavares" \
+            '{guid:$guid, name:$name, description:$desc, overview:$desc, owner:$owner, category:"General", versions:[]}')
+
+          EXISTING="[]"
+          [ -f manifest.json ] && EXISTING=$(cat manifest.json)
+
+          echo "$EXISTING" | jq \
+            --argjson base "$BASE" \
+            --argjson nv "$NEWVER" \
+            '(.[0] // $base) as $p
+             | ($p.versions // []) as $vers
+             | ($p
+                | .guid = $base.guid
+                | .name = $base.name
+                | .description = $base.description
+                | .overview = $base.overview
+                | .owner = $base.owner
+                | .category = $base.category
+                | .versions = ([$nv] + ($vers | map(select(.version != $nv.version)))))
+             | [.]' > manifest.json
+
+          cat manifest.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "ci: update plugin manifest for v${VERSION}" || echo "manifest unchanged"
+          git push origin HEAD:main
