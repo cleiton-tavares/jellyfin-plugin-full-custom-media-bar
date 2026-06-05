@@ -280,6 +280,40 @@
   background: rgba(255, 255, 255, 0.28);
 }
 
+.fcmb-player-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+  padding: 2em;
+  text-align: center;
+  color: #fff;
+}
+
+.fcmb-player-error p {
+  margin: 0;
+  max-width: 36em;
+  font-size: 1.05rem;
+  opacity: 0.9;
+}
+
+.fcmb-player-openext {
+  display: inline-block;
+  padding: 0.65em 1.5em;
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.fcmb-player-openext:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
 /* ---------------------------------------------------------------------------
  * Responsive
  * ------------------------------------------------------------------------- */

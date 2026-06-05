@@ -22,9 +22,15 @@ sem que ele precise existir na biblioteca:
 - **Selo/Badge** (ex.: `AO VIVO`, `14:00`, `Hoje`)
 - **Mídia** reproduzida ao clicar em *Assistir*, em um player embutido (overlay):
   - **Vídeo** (`.mp4`, `.webm`, ...) → `<video>` nativo
-  - **Transmissão ao vivo** (HLS `.m3u8`) → via [hls.js](https://github.com/video-dev/hls.js) (carregado sob demanda; usa player nativo no Safari)
-  - **YouTube / YouTube Live** → iframe embutido
+  - **Transmissão ao vivo**:
+    - HLS (`.m3u8`) → via [hls.js](https://github.com/video-dev/hls.js) (player nativo no Safari)
+    - MPEG-TS / FLV / streams `.ts` ao vivo → via [mpegts.js](https://github.com/xqq/mpegts.js)
+  - **YouTube / YouTube Live** → iframe embutido (com fallback "abrir em nova aba")
   - **Link externo** → abre em uma nova aba
+
+  > As bibliotecas `hls.js` e `mpegts.js` são **servidas pelo próprio plugin**
+  > (sem CDN externo). Se a reprodução falhar, normalmente é **CORS**: o servidor
+  > do stream precisa permitir o domínio do seu Jellyfin.
 
 O modo é selecionável nas configurações: **Biblioteca** (comportamento original)
 ou **Programação Custom**. O front-end customizado é servido pelo próprio plugin

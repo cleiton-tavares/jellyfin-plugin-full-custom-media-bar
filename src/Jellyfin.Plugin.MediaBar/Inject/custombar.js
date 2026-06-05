@@ -22,7 +22,9 @@
     fadeDuration: 500, // ms cross-fade duration (kept in sync with CSS)
     minSwipeDistance: 50, // px before a touch swipe counts
     retryInterval: 400, // ms between readiness checks
-    hlsCdn: "https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js",
+    // Player libraries are self-hosted by the plugin (no external CDN).
+    hlsScript: "MediaBar/hls.min.js",
+    mpegtsScript: "MediaBar/mpegts.js",
   };
 
   var STATE = {
@@ -33,6 +35,8 @@
     playerOpen: false,
     hlsInstance: null,
     hlsLoading: null,
+    mpegtsInstance: null,
+    mpegtsLoading: null,
     bootstrapInterval: null,
   };
 
@@ -115,77 +119,184 @@
   // Media playback overlay
   // ---------------------------------------------------------------------------
 
-  function youtubeEmbedUrl(url) {
+  function isYoutubeUrl(url) {
+    return /(?:youtube\.com|youtu\.be)/i.test(url || "");
+  }
+
+  // Extracts a YouTube video id from the many possible URL shapes, or null.
+  function youtubeId(url) {
     try {
       var parsed = new URL(url);
-      var id = null;
+      var path = parsed.pathname || "";
       if (parsed.hostname.indexOf("youtu.be") !== -1) {
-        id = parsed.pathname.replace(/^\//, "");
-      } else if (parsed.searchParams.get("v")) {
-        id = parsed.searchParams.get("v");
-      } else if (parsed.pathname.indexOf("/embed/") === 0) {
-        id = parsed.pathname.split("/embed/")[1];
-      } else if (parsed.pathname.indexOf("/live/") !== -1) {
-        id = parsed.pathname.split("/live/")[1];
+        return path.replace(/^\//, "").split("/")[0] || null;
       }
-      if (id) {
-        return "https://www.youtube.com/embed/" + id + "?autoplay=1&rel=0";
+      if (parsed.searchParams.get("v")) {
+        return parsed.searchParams.get("v");
+      }
+      var m = path.match(/\/(embed|live|shorts|v)\/([^/?#]+)/);
+      if (m) {
+        return m[2];
       }
     } catch (e) {
       /* fall through */
     }
-    return url;
+    return null;
   }
 
-  function loadHls() {
-    if (window.Hls) {
-      return Promise.resolve(window.Hls);
+  function youtubeEmbedUrl(url) {
+    var id = youtubeId(url);
+    if (!id) {
+      return null;
     }
-    if (STATE.hlsLoading) {
-      return STATE.hlsLoading;
+    var origin = "";
+    try {
+      origin = "&origin=" + encodeURIComponent(window.location.origin);
+    } catch (e) {
+      /* ignore */
     }
-    STATE.hlsLoading = new Promise(function (resolve, reject) {
+    // youtube-nocookie + playsinline + enablejsapi gives the most reliable embed.
+    return (
+      "https://www.youtube-nocookie.com/embed/" +
+      id +
+      "?autoplay=1&playsinline=1&rel=0&enablejsapi=1" +
+      origin
+    );
+  }
+
+  // Decides how a given item should actually be played, based on the chosen
+  // MediaType but also sniffing the URL so a misclassified link still works.
+  function resolveMediaKind(item) {
+    var type = (item.MediaType || "none").toLowerCase();
+    var url = item.MediaUrl || "";
+
+    if (type === "none" || !url) {
+      return "none";
+    }
+    if (type === "external") {
+      return "external";
+    }
+    if (type === "youtube" || isYoutubeUrl(url)) {
+      return "youtube";
+    }
+    if (/\.m3u8(\?|#|$)/i.test(url)) {
+      return "hls";
+    }
+    if (/\.(ts|flv|m2ts|mts)(\?|#|$)/i.test(url) || /\/ts\//i.test(url)) {
+      return "mpegts";
+    }
+    if (type === "live") {
+      // Unknown live container: mpegts.js handles raw MPEG-TS/FLV streams.
+      return "mpegts";
+    }
+    return "video"; // mp4/webm/ogg and other natively playable files
+  }
+
+  // Resolves a plugin-served asset (e.g. "MediaBar/mpegts.js") to a full URL,
+  // honouring any Jellyfin base path. Keeps the libraries on the user's server.
+  function pluginAssetUrl(resource) {
+    try {
+      if (window.ApiClient && typeof window.ApiClient.getUrl === "function") {
+        return window.ApiClient.getUrl(resource);
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    return "/" + resource;
+  }
+
+  function loadScriptOnce(resource, globalName, stateKey) {
+    if (window[globalName]) {
+      return Promise.resolve(window[globalName]);
+    }
+    if (STATE[stateKey]) {
+      return STATE[stateKey];
+    }
+    STATE[stateKey] = new Promise(function (resolve, reject) {
       var script = document.createElement("script");
-      script.src = CONFIG.hlsCdn;
+      script.src = pluginAssetUrl(resource);
       script.onload = function () {
-        resolve(window.Hls);
+        resolve(window[globalName]);
       };
       script.onerror = function () {
-        reject(new Error("Failed to load hls.js"));
+        reject(new Error("Failed to load " + resource));
       };
       document.head.appendChild(script);
     });
-    return STATE.hlsLoading;
+    return STATE[stateKey];
   }
 
-  function attachStream(video, url, isLive) {
-    var canNative = video.canPlayType("application/vnd.apple.mpegurl");
-    var looksHls = /\.m3u8(\?|$)/i.test(url);
+  function loadMpegts() {
+    return loadScriptOnce(CONFIG.mpegtsScript, "mpegts", "mpegtsLoading");
+  }
 
-    if (looksHls && !canNative) {
-      loadHls()
-        .then(function (Hls) {
-          if (Hls && Hls.isSupported()) {
-            destroyHls();
-            STATE.hlsInstance = new Hls({ lowLatencyMode: !!isLive });
-            STATE.hlsInstance.loadSource(url);
-            STATE.hlsInstance.attachMedia(video);
-            STATE.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function () {
-              video.play().catch(function () {});
-            });
-          } else {
-            video.src = url;
-          }
-        })
-        .catch(function () {
-          video.src = url;
-        });
-    } else {
+  function loadHls() {
+    return loadScriptOnce(CONFIG.hlsScript, "Hls", "hlsLoading");
+  }
+
+  // Attaches an HLS (.m3u8) source: native where supported (Safari), else hls.js.
+  function attachHls(video, url, isLive, onError) {
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
+      video.play().catch(function () {});
+      return;
     }
+    loadHls()
+      .then(function (Hls) {
+        if (Hls && Hls.isSupported()) {
+          destroyPlayers();
+          STATE.hlsInstance = new Hls({ lowLatencyMode: !!isLive });
+          STATE.hlsInstance.loadSource(url);
+          STATE.hlsInstance.attachMedia(video);
+          STATE.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function () {
+            video.play().catch(function () {});
+          });
+          STATE.hlsInstance.on(Hls.Events.ERROR, function (_e, data) {
+            if (data && data.fatal && onError) {
+              onError();
+            }
+          });
+        } else {
+          video.src = url;
+        }
+      })
+      .catch(function () {
+        if (onError) {
+          onError();
+        }
+      });
   }
 
-  function destroyHls() {
+  // Attaches a raw MPEG-TS / FLV (often live) source via mpegts.js.
+  function attachMpegts(video, url, isLive, onError) {
+    loadMpegts()
+      .then(function (mpegts) {
+        if (mpegts && mpegts.isSupported()) {
+          destroyPlayers();
+          STATE.mpegtsInstance = mpegts.createPlayer(
+            { type: "mpegts", isLive: !!isLive, url: url },
+            { enableWorker: true, liveBufferLatencyChasing: !!isLive }
+          );
+          STATE.mpegtsInstance.attachMediaElement(video);
+          STATE.mpegtsInstance.on(mpegts.Events.ERROR, function () {
+            if (onError) {
+              onError();
+            }
+          });
+          STATE.mpegtsInstance.load();
+          video.play().catch(function () {});
+        } else if (onError) {
+          onError();
+        }
+      })
+      .catch(function () {
+        if (onError) {
+          onError();
+        }
+      });
+  }
+
+  function destroyPlayers() {
     if (STATE.hlsInstance) {
       try {
         STATE.hlsInstance.destroy();
@@ -194,6 +305,14 @@
       }
       STATE.hlsInstance = null;
     }
+    if (STATE.mpegtsInstance) {
+      try {
+        STATE.mpegtsInstance.destroy();
+      } catch (e) {
+        /* ignore */
+      }
+      STATE.mpegtsInstance = null;
+    }
   }
 
   function closePlayer() {
@@ -201,7 +320,7 @@
     if (overlay) {
       overlay.remove();
     }
-    destroyHls();
+    destroyPlayers();
     STATE.playerOpen = false;
     document.removeEventListener("keydown", onPlayerKeydown, true);
     if (!STATE.isPaused) {
@@ -217,14 +336,13 @@
   }
 
   function openPlayer(item) {
-    var type = (item.MediaType || "none").toLowerCase();
     var url = item.MediaUrl || "";
+    var kind = resolveMediaKind(item);
 
-    if (type === "none" || !url) {
+    if (kind === "none") {
       return;
     }
-
-    if (type === "external") {
+    if (kind === "external") {
       window.open(url, "_blank", "noopener");
       return;
     }
@@ -233,25 +351,65 @@
     closePlayer();
     STATE.playerOpen = true;
 
-    var mediaNode;
-    if (type === "youtube") {
-      mediaNode = el("iframe", {
-        className: "fcmb-player-frame",
-        src: youtubeEmbedUrl(url),
-        allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
-        allowfullscreen: "true",
-        frameborder: "0",
-      });
+    var inner = el("div", { className: "fcmb-player-inner" });
+    var isLive = (item.MediaType || "").toLowerCase() === "live" || kind === "mpegts";
+
+    // Shown when playback fails (codec unsupported, CORS, embedding disabled...).
+    function showError(messageHtml) {
+      inner.innerHTML = "";
+      inner.appendChild(
+        el("div", { className: "fcmb-player-error" }, [
+          el("p", { html: messageHtml || "Não foi possível reproduzir esta mídia aqui." }),
+          el("a", {
+            className: "fcmb-player-openext",
+            href: url,
+            target: "_blank",
+            rel: "noopener",
+            text: "Abrir em nova aba",
+          }),
+        ])
+      );
+    }
+
+    if (kind === "youtube") {
+      var embed = youtubeEmbedUrl(url);
+      if (!embed) {
+        showError("Link do YouTube inválido.");
+      } else {
+        inner.appendChild(
+          el("iframe", {
+            className: "fcmb-player-frame",
+            src: embed,
+            allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
+            allowfullscreen: "true",
+            frameborder: "0",
+          })
+        );
+      }
     } else {
-      // "video" or "live"
       var video = el("video", {
         className: "fcmb-player-video",
         controls: "true",
         autoplay: "true",
         playsinline: "true",
       });
-      mediaNode = video;
-      attachStream(video, url, type === "live");
+      video.addEventListener("error", function () {
+        showError("Não foi possível reproduzir o stream (formato não suportado, CORS ou link offline).");
+      });
+      inner.appendChild(video);
+
+      if (kind === "hls") {
+        attachHls(video, url, isLive, function () {
+          showError("Falha ao carregar a transmissão HLS (verifique a URL e o CORS).");
+        });
+      } else if (kind === "mpegts") {
+        attachMpegts(video, url, isLive, function () {
+          showError("Falha ao carregar a transmissão ao vivo (MPEG-TS). Verifique a URL e o CORS do servidor.");
+        });
+      } else {
+        video.src = url;
+        video.play().catch(function () {});
+      }
     }
 
     var closeBtn = el("button", {
@@ -262,7 +420,6 @@
       onclick: closePlayer,
     });
 
-    var inner = el("div", { className: "fcmb-player-inner" }, [mediaNode]);
     var overlay = el(
       "div",
       {

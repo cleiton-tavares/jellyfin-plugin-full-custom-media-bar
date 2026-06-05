@@ -12,7 +12,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-        <Version>2.4.0.0</Version>
+        <Version>2.4.1.0</Version>
     </PropertyGroup>
 
     <ItemGroup>
@@ -52,6 +52,10 @@
       <EmbeddedResource Include="Inject\custombar.js" />
       <None Remove="Inject\custombar.css" />
       <EmbeddedResource Include="Inject\custombar.css" />
+      <None Remove="Inject\hls.min.js" />
+      <EmbeddedResource Include="Inject\hls.min.js" />
+      <None Remove="Inject\mpegts.js" />
+      <EmbeddedResource Include="Inject\mpegts.js" />
     </ItemGroup>
 
     <ItemGroup>
