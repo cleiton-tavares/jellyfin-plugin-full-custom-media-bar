@@ -1,0 +1,111 @@
+<script defer>
+    /*
+     * Full Custom Media Bar - bootstrap
+     *
+     * Decides which front-end to load based on the plugin's ContentMode:
+     *   - "Custom"  -> self-hosted custombar.js/css served by this plugin,
+     *                  rendering the hand-curated items (title, image, video
+     *                  or live broadcast).
+     *   - "Library" -> the original library-driven slideshowpure.js/css.
+     */
+    (function () {
+        if (window.__FullCustomMediaBarBootstrapped) {
+            return;
+        }
+        window.__FullCustomMediaBarBootstrapped = true;
+
+        var LIBRARY_VERSION = "{{Config.VersionString}}";
+
+        function loadStyle(href) {
+            var link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = href;
+            document.head.appendChild(link);
+        }
+
+        function loadScript(src, defer) {
+            var script = document.createElement("script");
+            script.src = src;
+            if (defer) {
+                script.defer = true;
+            } else {
+                script.async = true;
+            }
+            document.head.appendChild(script);
+        }
+
+        function loadCustomBar(config) {
+            // Make the curated items available to the front-end without a second request.
+            window.__FullCustomMediaBarConfig = config;
+            loadStyle(window.ApiClient.getUrl("MediaBar/custombar.css"));
+            loadScript(window.ApiClient.getUrl("MediaBar/custombar.js"), true);
+        }
+
+        function loadLibraryBar() {
+            // Original Media Bar behaviour (library / playlist / avatars list.txt).
+            loadStyle("https://cdn.jsdelivr.net/gh/IAmParadox27/jellyfin-plugin-media-bar@" + LIBRARY_VERSION + "/slideshowpure.css");
+            loadScript("https://cdn.jsdelivr.net/gh/IAmParadox27/jellyfin-plugin-media-bar@" + LIBRARY_VERSION + "/slideshowpure.js", true);
+
+            if (typeof window.MediaBarConfigHandler !== "undefined") {
+                return;
+            }
+            window.MediaBarConfigHandler = {
+                loadConfig: async function () {
+                    return await window.ApiClient.getJSON(window.ApiClient.getUrl("MediaBar/WebConfig"));
+                },
+                init: async function () {
+                    var config = await window.MediaBarConfigHandler.loadConfig();
+                    var c = window.slideshowPure.CONFIG;
+                    if (config.ImageSvgs.ImdbLogo != null) { c.IMAGE_SVG.imdbLogo = config.ImageSvgs.ImdbLogo; }
+                    if (config.ImageSvgs.TomatoLogo != null) { c.IMAGE_SVG.imdbLogo = config.ImageSvgs.TomatoLogo; }
+                    if (config.ImageSvgs.FreshTomato != null) { c.IMAGE_SVG.imdbLogo = config.ImageSvgs.FreshTomato; }
+                    if (config.ImageSvgs.RottenTomato != null) { c.IMAGE_SVG.imdbLogo = config.ImageSvgs.RottenTomato; }
+                    if (config.ShuffleInterval >= 0) { c.shuffleInterval = config.ShuffleInterval; }
+                    if (config.RetryInterval >= 0) { c.retryInterval = config.RetryInterval; }
+                    if (config.MinSwipeDistance >= 0) { c.minSwipeDistance = config.MinSwipeDistance; }
+                    if (config.LoadingCheckInterval >= 0) { c.loadingCheckInterval = config.LoadingCheckInterval; }
+                    if (config.MaxPlotLength >= 0) { c.maxPlotLength = config.MaxPlotLength; }
+                    if (config.MaxMovies >= 0) { c.maxMovies = config.MaxMovies; }
+                    if (config.MaxTvShows >= 0) { c.maxTvShows = config.MaxTvShows; }
+                    if (config.MaxItems >= 0) { c.maxItems = config.MaxItems; }
+                    if (config.PreloadCount >= 0) { c.preloadCount = config.PreloadCount; }
+                    if (config.FadeTransitionDuration >= 0) { c.fadeTransitionDuration = config.FadeTransitionDuration; }
+                    if (config.EnableTrailers != null) { c.enableTrailers = config.EnableTrailers; }
+                    c.slideAnimationEnabled = config.SlideAnimationEnabled;
+                }
+            };
+
+            var waitingForPluginInterval = setInterval(function () {
+                if (window.slideshowPure && window.slideshowPure.CONFIG && window.ApiClient) {
+                    clearInterval(waitingForPluginInterval);
+                    window.MediaBarConfigHandler.init().then(function () {
+                        console.log("Loaded Media Bar plugin config into plugin javascript");
+                    });
+                }
+            }, 100);
+        }
+
+        function start() {
+            window.ApiClient
+                .getJSON(window.ApiClient.getUrl("MediaBar/CustomConfig"))
+                .then(function (config) {
+                    if (config && config.ContentMode === "Custom") {
+                        loadCustomBar(config);
+                    } else {
+                        loadLibraryBar();
+                    }
+                })
+                .catch(function (error) {
+                    console.error("Full Custom Media Bar: failed to load config, falling back to library mode.", error);
+                    loadLibraryBar();
+                });
+        }
+
+        var waitForApiClient = setInterval(function () {
+            if (window.ApiClient && typeof window.ApiClient.getUrl === "function") {
+                clearInterval(waitForApiClient);
+                start();
+            }
+        }, 100);
+    })();
+</script>

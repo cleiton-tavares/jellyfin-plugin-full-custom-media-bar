@@ -1,0 +1,48 @@
+name: Build Plugin
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      jellyfinVersion:
+        description: "Target Jellyfin version"
+        required: false
+        default: "10.11.2"
+
+env:
+  PROJECT: src/Jellyfin.Plugin.MediaBar/Jellyfin.Plugin.MediaBar.csproj
+  JELLYFIN_VERSION: ${{ github.event.inputs.jellyfinVersion || '10.11.2' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore "$PROJECT" -p:JellyfinVersion=$JELLYFIN_VERSION
+
+      - name: Build
+        run: dotnet build "$PROJECT" -c Release --no-restore -p:JellyfinVersion=$JELLYFIN_VERSION -o ./publish
+
+      - name: Package
+        run: |
+          cd publish
+          zip -r ../full-custom-media-bar_${JELLYFIN_VERSION}.zip Jellyfin.Plugin.MediaBar.dll
+          cd ..
+          md5sum full-custom-media-bar_${JELLYFIN_VERSION}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-custom-media-bar-${{ env.JELLYFIN_VERSION }}
+          path: full-custom-media-bar_${{ env.JELLYFIN_VERSION }}.zip
+          if-no-files-found: error

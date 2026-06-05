@@ -1,0 +1,306 @@
+/*
+ * Full Custom Media Bar - custom front-end styles
+ * Prefixed with `fcmb-` to avoid clashing with Jellyfin / other plugins.
+ */
+
+#fcmb-container.fcmb-container {
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  max-height: 760px;
+  min-height: 360px;
+  margin: 0 0 1.5em 0;
+  overflow: hidden;
+  background: #000;
+  isolation: isolate;
+}
+
+.fcmb-slides {
+  position: absolute;
+  inset: 0;
+}
+
+.fcmb-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease-in-out;
+  z-index: 0;
+}
+
+.fcmb-slide.active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.fcmb-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+.fcmb-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0) 55%),
+    linear-gradient(to right, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 60%);
+}
+
+.fcmb-content {
+  position: absolute;
+  left: 4vw;
+  bottom: 12%;
+  right: 4vw;
+  max-width: 720px;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  z-index: 2;
+}
+
+.fcmb-badge {
+  display: inline-block;
+  margin-bottom: 0.8em;
+  padding: 0.3em 0.8em;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fcmb-logo {
+  display: block;
+  max-width: min(70%, 420px);
+  max-height: 28vh;
+  margin-bottom: 0.4em;
+  object-fit: contain;
+}
+
+.fcmb-title {
+  margin: 0 0 0.2em 0;
+  font-size: clamp(1.8rem, 4vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.fcmb-subtitle {
+  margin-bottom: 0.6em;
+  font-size: clamp(1rem, 1.6vw, 1.4rem);
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.fcmb-plot {
+  margin: 0 0 1.2em 0;
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  line-height: 1.45;
+  opacity: 0.88;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fcmb-buttons {
+  display: flex;
+  gap: 0.8em;
+  flex-wrap: wrap;
+}
+
+.fcmb-play-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.7em 1.6em;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.fcmb-play-button:hover {
+  transform: scale(1.04);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.fcmb-play-button.fcmb-play-live {
+  background: #e50914;
+  color: #fff;
+}
+
+.fcmb-play-button.fcmb-play-live:hover {
+  background: #ff1f2b;
+}
+
+.fcmb-play-button.fcmb-play-live .fcmb-play-icon {
+  color: #fff;
+  animation: fcmb-pulse 1.4s infinite;
+}
+
+@keyframes fcmb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.fcmb-play-icon {
+  font-size: 0.9em;
+  line-height: 1;
+}
+
+/* Navigation arrows */
+.fcmb-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+#fcmb-container:hover .fcmb-arrow {
+  opacity: 0.8;
+}
+
+.fcmb-arrow:hover {
+  background: rgba(0, 0, 0, 0.65);
+  opacity: 1;
+}
+
+.fcmb-arrow-left {
+  left: 1.2vw;
+}
+
+.fcmb-arrow-right {
+  right: 1.2vw;
+}
+
+/* Indicator dots */
+.fcmb-dots {
+  position: absolute;
+  right: 4vw;
+  bottom: 5%;
+  z-index: 3;
+  display: flex;
+  gap: 0.55em;
+}
+
+.fcmb-dot {
+  width: 0.7em;
+  height: 0.7em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.fcmb-dot.active {
+  background: #fff;
+  transform: scale(1.5);
+}
+
+/* ---------------------------------------------------------------------------
+ * Player overlay
+ * ------------------------------------------------------------------------- */
+
+.fcmb-player {
+  position: fixed;
+  inset: 0;
+  z-index: 99999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  animation: fcmb-fade-in 0.2s ease;
+}
+
+@keyframes fcmb-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fcmb-player-inner {
+  position: relative;
+  width: min(92vw, 1600px);
+  aspect-ratio: 16 / 9;
+  max-height: 92vh;
+  background: #000;
+  box-shadow: 0 10px 60px rgba(0, 0, 0, 0.8);
+}
+
+.fcmb-player-video,
+.fcmb-player-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+}
+
+.fcmb-player-close {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  z-index: 2;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.fcmb-player-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* ---------------------------------------------------------------------------
+ * Responsive
+ * ------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  #fcmb-container.fcmb-container {
+    height: 56vh;
+    min-height: 300px;
+  }
+
+  .fcmb-content {
+    left: 5vw;
+    right: 5vw;
+    bottom: 14%;
+  }
+
+  .fcmb-arrow {
+    display: none;
+  }
+
+  .fcmb-overlay {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0) 60%);
+  }
+}
