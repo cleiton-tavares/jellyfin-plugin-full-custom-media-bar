@@ -1,0 +1,20 @@
+[
+  {
+    "guid": "cda73f97-adfe-4af6-b875-d7a4addf4559",
+    "name": "Full Custom Media Bar",
+    "description": "Barra de mídia totalmente customizável (ex.: programação da Copa): título, imagem, vídeo ou transmissão ao vivo.",
+    "overview": "Barra de mídia totalmente customizável (ex.: programação da Copa): título, imagem, vídeo ou transmissão ao vivo.",
+    "owner": "cleiton-tavares",
+    "category": "General",
+    "versions": [
+      {
+        "version": "2.4.0.0",
+        "changelog": "",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/cleiton-tavares/jellyfin-plugin-full-custom-media-bar/releases/download/v2.4.0.0/full-custom-media-bar-2.4.0.0.zip",
+        "checksum": "5fefbf02a4042dbc914c73559cf518a5",
+        "timestamp": "2026-06-05T19:53:34Z"
+      }
+    ]
+  }
+]
