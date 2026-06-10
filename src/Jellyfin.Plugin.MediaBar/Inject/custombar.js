@@ -149,19 +149,11 @@
     if (!id) {
       return null;
     }
-    var origin = "";
-    try {
-      origin = "&origin=" + encodeURIComponent(window.location.origin);
-    } catch (e) {
-      /* ignore */
-    }
-    // youtube-nocookie + playsinline + enablejsapi gives the most reliable embed.
-    return (
-      "https://www.youtube-nocookie.com/embed/" +
-      id +
-      "?autoplay=1&playsinline=1&rel=0&enablejsapi=1" +
-      origin
-    );
+    // Standard embed. We deliberately avoid enablejsapi/origin/nocookie: combined
+    // with Jellyfin's no-referrer policy they cause YouTube "error 153" (player
+    // configuration / domain verification). The iframe's referrerpolicy (set on
+    // the element) is what actually lets YouTube verify the embedding origin.
+    return "https://www.youtube.com/embed/" + id + "?autoplay=1&playsinline=1&rel=0";
   }
 
   // Decides how a given item should actually be played, based on the chosen
@@ -380,6 +372,9 @@
           el("iframe", {
             className: "fcmb-player-frame",
             src: embed,
+            // Override Jellyfin's no-referrer policy so YouTube can verify the
+            // embedding domain (otherwise it fails with "error 153").
+            referrerpolicy: "strict-origin-when-cross-origin",
             allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
             allowfullscreen: "true",
             frameborder: "0",
