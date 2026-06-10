@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "2.4.2.0",
+        "changelog": "",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/cleiton-tavares/jellyfin-plugin-full-custom-media-bar/releases/download/v2.4.2.0/full-custom-media-bar-2.4.2.0.zip",
+        "checksum": "7361d9ef02532bc8c82bf15fd7af28d8",
+        "timestamp": "2026-06-10T19:43:10Z"
+      },
+      {
         "version": "2.4.1.0",
         "changelog": "",
         "targetAbi": "10.11.0.0",
