@@ -43,7 +43,8 @@ jobs:
         run: |
           JV="${{ github.event.inputs.jellyfinVersion }}"
           [ -z "$JV" ] && JV="10.11.2"
-          VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' "$PROJECT")
+          # Source of truth = the assembly version Jellyfin actually reads.
+          VERSION=$(grep -oP 'AssemblyVersion\("\K[^"]+' src/Jellyfin.Plugin.MediaBar/Properties/AssemblyInfo.cs)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "jv=$JV" >> "$GITHUB_OUTPUT"
           echo "Building version $VERSION against Jellyfin $JV"
